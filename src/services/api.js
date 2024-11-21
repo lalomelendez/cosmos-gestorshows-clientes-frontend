@@ -189,3 +189,20 @@ export const deleteShow = async (showId) => {
     throw new Error("Failed to delete show");
   }
 };
+
+export const sendOscPlay = async (showId, language) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/osc/play`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ showId, language }),
+    });
+
+    if (!response.ok) throw new Error("Failed to send OSC play signal");
+    return await response.json();
+  } catch (error) {
+    throw new Error("Failed to control show playback");
+  }
+};

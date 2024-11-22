@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { fetchShows, sendOscPlay, sendOscStandby } from "../services/api";
+import { fetchShows, sendOscPlay, sendOscStandby, sendShowUserDetails, getShowById } from "../services/api";
+import { useNavigate } from "react-router-dom";
+
 
 function ShowPlayback() {
   const [shows, setShows] = useState([]);
@@ -8,6 +10,12 @@ function ShowPlayback() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showUsers, setShowUsers] = useState([]);
+const [loadingUsers, setLoadingUsers] = useState(false);
+
+const navigate = useNavigate();
+
+
 
   useEffect(() => {
     loadShows();
@@ -27,9 +35,25 @@ function ShowPlayback() {
     }
   };
 
-  const handleShowSelect = (showId) => {
+  const handleShowSelect = async (showId) => {
     const show = shows.find((s) => s._id === showId);
     setSelectedShow(show);
+    
+    if (showId) {
+      setLoadingUsers(true);
+      try {
+        // Use the service function instead of direct fetch
+        const showData = await getShowById(showId); // Add this function to api.js
+        setShowUsers(showData.clients || []);
+      } catch (error) {
+        console.error("Failed to fetch users:", error);
+        setError(language === "en" ? "Failed to load users" : "Error al cargar usuarios");
+      } finally {
+        setLoadingUsers(false);
+      }
+    } else {
+      setShowUsers([]);
+    }
   };
 
   const handleLanguageChange = (lang) => {
@@ -40,16 +64,26 @@ function ShowPlayback() {
     if (!selectedShow) return;
   
     try {
-      setError(null); // Clear previous errors
+      setError(null);
+      console.log('[Frontend] Sending user details for show:', selectedShow._id);
+      
+      // First send user details
+      await sendShowUserDetails(selectedShow._id);
+      console.log('[Frontend] User details sent successfully');
+      
+      // Then send play signal
       await sendOscPlay(selectedShow._id, language);
+      console.log('[Frontend] Play signal sent successfully');
+      
       setIsPlaying(true);
     } catch (error) {
-      console.error("Playback error details:", error);
+      console.error("[Frontend] Playback error:", error);
       setError(
         language === "en"
           ? `Playback failed: ${error.message}`
           : `Error de reproducción: ${error.message}`
       );
+      setIsPlaying(false);
     }
   };
 
@@ -59,12 +93,13 @@ function ShowPlayback() {
   
     try {
       setError(null);
-      console.log('[Frontend] Calling sendOscStandby');
       await sendOscStandby(selectedShow._id);
-      console.log('[Frontend] Standby successful');
+      console.log('[Frontend] Standby successful, navigating to home');
       setIsPlaying(false);
+      // Navigate to home page
+      navigate('/');
     } catch (error) {
-      console.error('[Frontend] Standby error:', error);
+      console.error("[Frontend] Standby error:", error);
       setError(
         language === "en"
           ? `Standby failed: ${error.message}`
@@ -124,11 +159,45 @@ function ShowPlayback() {
         </select>
       </div>
 
+      // Add Users Display Component after show selector
+{selectedShow && (
+  <div className="mt-6 bg-white rounded-lg shadow p-4">
+    <h2 className="text-xl font-semibold mb-4">
+      {language === "en" ? "Show Users" : "Usuarios del Show"}
+    </h2>
+    
+    {loadingUsers ? (
+      <div className="text-center text-gray-500">
+        {language === "en" ? "Loading users..." : "Cargando usuarios..."}
+      </div>
+    ) : showUsers.length > 0 ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {showUsers.map((user) => (
+          <div key={user._id} className="border rounded-md p-3 bg-gray-50">
+            <div className="font-medium">{user.name}</div>
+            <div className="text-sm text-gray-600">
+              <div>Energy: {user.energy}</div>
+              <div>Element: {user.element}</div>
+              <div>Essence: {user.essence}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="text-center text-gray-500">
+        {language === "en" ? "No users assigned" : "No hay usuarios asignados"}
+      </div>
+    )}
+  </div>
+)}
+
       {error && (
         <div className="text-red-500 mb-4">
           {error}
         </div>
       )}
+
+
 
       {/* Playback Controls */}
       <div className="flex justify-center space-x-4">

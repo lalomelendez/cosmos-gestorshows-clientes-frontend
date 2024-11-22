@@ -1,6 +1,8 @@
 // src/services/api.js
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "http://10.1.14.208:5000/api";
+
+
+  export const API_BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.0.100:5000/api";
+
 
 // Shows API
 export const createShow = async (startTime) => {
@@ -151,6 +153,45 @@ export const sendOscPlay = async (showId, language) => {
   }
 };
 
+// In api.js - Update sendShowUserDetails
+export const sendShowUserDetails = async (showId) => {
+  console.log('[API] Sending user details for show:', showId);
+  try {
+    // First get show details with populated users
+    const showResponse = await fetch(`${API_BASE_URL}/shows/${showId}`);
+    if (!showResponse.ok) {
+      throw new Error('Failed to fetch show details');
+    }
+    const showData = await showResponse.json();
+
+    // Send user details to OSC endpoint
+    const response = await fetch(`${API_BASE_URL}/osc/send-users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        showId,
+        users: showData.clients // Send the populated users array
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('[API] Successfully sent user details:', data);
+    return data;
+  } catch (error) {
+    console.error('[API] Failed to send user details:', error);
+    throw error;
+  }
+};
+
+
+
 export const sendOscStandby = async (showId) => {
   console.log('[API] Sending standby request:', { showId });
   try {
@@ -243,6 +284,21 @@ export const deleteShow = async (showId) => {
   } catch (error) {
     console.error("Failed to delete show:", error);
     throw new Error("Failed to delete show");
+  }
+};
+
+
+// In api.js - Add new function
+export const getShowById = async (showId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/shows/${showId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch show details');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to fetch show:", error);
+    throw error;
   }
 };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchShows, sendOscPlay } from "../services/api";
+import { fetchShows, sendOscPlay, sendOscStandby } from "../services/api";
 
 function ShowPlayback() {
   const [shows, setShows] = useState([]);
@@ -30,7 +30,6 @@ function ShowPlayback() {
   const handleShowSelect = (showId) => {
     const show = shows.find((s) => s._id === showId);
     setSelectedShow(show);
-    setError(null);
   };
 
   const handleLanguageChange = (lang) => {
@@ -39,15 +38,37 @@ function ShowPlayback() {
 
   const handlePlay = async () => {
     if (!selectedShow) return;
-
+  
     try {
+      setError(null); // Clear previous errors
       await sendOscPlay(selectedShow._id, language);
+      setIsPlaying(true);
     } catch (error) {
-      console.error("Playback error:", error);
+      console.error("Playback error details:", error);
       setError(
         language === "en"
-          ? "Failed to control playback"
-          : "Error al controlar la reproducción"
+          ? `Playback failed: ${error.message}`
+          : `Error de reproducción: ${error.message}`
+      );
+    }
+  };
+
+  const handleStandby = async () => {
+    if (!selectedShow) return;
+    console.log('[Frontend] Initiating standby for show:', selectedShow._id);
+  
+    try {
+      setError(null);
+      console.log('[Frontend] Calling sendOscStandby');
+      await sendOscStandby(selectedShow._id);
+      console.log('[Frontend] Standby successful');
+      setIsPlaying(false);
+    } catch (error) {
+      console.error('[Frontend] Standby error:', error);
+      setError(
+        language === "en"
+          ? `Standby failed: ${error.message}`
+          : `Error en standby: ${error.message}`
       );
     }
   };
@@ -59,33 +80,28 @@ function ShowPlayback() {
       </h1>
 
       {/* Language Selector */}
-      <div className="mb-6 flex items-center space-x-4">
-        <span className="text-gray-700 font-medium">
-          {language === "en" ? "Language:" : "Idioma:"}
-        </span>
-        <div className="flex bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => handleLanguageChange("en")}
-            className={`px-4 py-2 rounded-md transition-all duration-200 ${
-              language === "en"
-                ? "bg-white shadow-md text-indigo-600"
-                : "text-gray-600 hover:text-indigo-600"
-            }`}
-          >
-            🇺🇸 English
-          </button>
-          <button
-            onClick={() => handleLanguageChange("es")}
-            className={`px-4 py-2 rounded-md transition-all duration-200 ${
-              language === "es"
-                ? "bg-white shadow-md text-indigo-600"
-                : "text-gray-600 hover:text-indigo-600"
-            }`}
-          >
-            🇪🇸 Español
-          </button>
-        </div>
-      </div>
+      <div className="flex space-x-2">
+  <button
+    onClick={() => handleLanguageChange("en")}
+    className={`px-4 py-2 rounded-md transition-all duration-200 ${
+      language === "en"
+        ? "bg-white shadow-md text-indigo-600"
+        : "text-gray-600 hover:text-indigo-600"
+    }`}
+  >
+    🇺🇸 English
+  </button>
+  <button
+    onClick={() => handleLanguageChange("es")}  // Changed from "es-MX" to "es"
+    className={`px-4 py-2 rounded-md transition-all duration-200 ${
+      language === "es"  // Changed from "es-MX" to "es"
+        ? "bg-white shadow-md text-indigo-600"
+        : "text-gray-600 hover:text-indigo-600"
+    }`}
+  >
+    🇲🇽 Español
+  </button>
+</div>
 
       {/* Show Selector */}
       <div className="mb-6">
@@ -95,144 +111,48 @@ function ShowPlayback() {
         <select
           onChange={(e) => handleShowSelect(e.target.value)}
           value={selectedShow?._id || ""}
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          disabled={loading}
+          className="w-full p-2 border rounded-md"
         >
           <option value="">
             {language === "en" ? "Choose a show..." : "Elegir un show..."}
           </option>
           {shows.map((show) => (
             <option key={show._id} value={show._id}>
-              {new Date(show.startTime).toLocaleString()} -
-              {language === "en" ? "Users: " : "Usuarios: "}
-              {show.clients?.length || 0}/4
+              {new Date(show.startTime).toLocaleString()}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Playback Controls */}
-      {selectedShow && !loading && (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex flex-col items-center">
-            <div className="mb-6 text-center">
-              <p className="text-lg font-semibold mb-2">
-                {language === "en" ? "Selected Show" : "Show Seleccionado"}
-              </p>
-              <p className="text-gray-600">
-                {new Date(selectedShow.startTime).toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                {selectedShow.clients?.length || 0}
-                {language === "en" ? " users" : " usuarios"}
-              </p>
-            </div>
-
-            <button
-              onClick={handlePlay}
-              disabled={!selectedShow || loading}
-              className="flex items-center justify-center px-8 py-4 rounded-full
-    text-white font-semibold text-lg
-    bg-green-600 hover:bg-green-700
-    disabled:opacity-50 disabled:cursor-not-allowed
-    w-48 transition-all duration-200"
-            >
-              <svg
-                className="w-6 h-6 mr-2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              {language === "en" ? "Play Show" : "Iniciar Show"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* User List */}
-      {selectedShow && !loading && (
-        <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-          <h2 className="text-xl font-semibold mb-4">
-            {language === "en" ? "Show Participants" : "Participantes del Show"}
-          </h2>
-
-          {selectedShow.clients?.length === 0 ? (
-            <p className="text-gray-500">
-              {language === "en"
-                ? "No users assigned"
-                : "No hay usuarios asignados"}
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {selectedShow.clients?.map((client) => (
-                <div
-                  key={client._id}
-                  className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-gray-800">{client.name}</h3>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <div className="text-center">
-                      <div className="text-xs text-gray-500 mb-1">
-                        {language === "en" ? "Energy" : "Energía"}
-                      </div>
-                      <div className="font-medium text-indigo-600">
-                        {client.energy}
-                      </div>
-                    </div>
-
-                    <div className="text-center">
-                      <div className="text-xs text-gray-500 mb-1">
-                        {language === "en" ? "Element" : "Elemento"}
-                      </div>
-                      <div className="font-medium text-indigo-600">
-                        {client.element}
-                      </div>
-                    </div>
-
-                    <div className="text-center">
-                      <div className="text-xs text-gray-500 mb-1">
-                        {language === "en" ? "Essence" : "Esencia"}
-                      </div>
-                      <div className="font-medium text-indigo-600">
-                        {client.essence}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Loading and Error States */}
-      {loading && (
-        <div className="flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        </div>
-      )}
-
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-          {language === "en" ? error : "Error al cargar los shows"}
+        <div className="text-red-500 mb-4">
+          {error}
         </div>
       )}
+
+      {/* Playback Controls */}
+      <div className="flex justify-center space-x-4">
+        {!isPlaying ? (
+          <button
+            onClick={handlePlay}
+            disabled={!selectedShow || loading}
+            className={`px-6 py-2 rounded-md ${
+              !selectedShow || loading
+                ? "bg-gray-300 cursor-not-allowed"
+                : "bg-indigo-600 hover:bg-indigo-700 text-white"
+            }`}
+          >
+            {language === "en" ? "Play" : "Reproducir"}
+          </button>
+        ) : (
+          <button
+            onClick={handleStandby}
+            className="px-6 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 text-white"
+          >
+            STAND BY
+          </button>
+        )}
+      </div>
     </div>
   );
 }

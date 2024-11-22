@@ -1,6 +1,6 @@
 // src/services/api.js
 const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "http://192.168.1.12:5000/api";
+  process.env.REACT_APP_API_URL || "http://10.1.14.208:5000/api";
 
 // Shows API
 export const createShow = async (startTime) => {
@@ -124,6 +124,62 @@ export const getShowPlayback = async (showId) => {
   }
 };
 
+
+export const sendOscPlay = async (showId, language) => {
+  console.log(`[Frontend] Sending play request:`, { showId, language });
+  try {
+    const response = await fetch(`${API_BASE_URL}/osc/play`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ showId, language }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error(`[Frontend] Server error:`, errorData);
+      throw new Error(errorData.message || "Failed to send OSC play signal");
+    }
+
+    const data = await response.json();
+    console.log('[Frontend] Play request successful:', data);
+    return data;
+  } catch (error) {
+    console.error('[Frontend] Play error details:', error);
+    throw error;
+  }
+};
+
+export const sendOscStandby = async (showId) => {
+  console.log('[API] Sending standby request:', { showId });
+  try {
+    const response = await fetch(`${API_BASE_URL}/osc/standby`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ showId }), // Add showId to body
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[API] Server error:', errorData);
+      throw new Error(errorData.message || "Failed to send OSC standby signal");
+    }
+
+    const data = await response.json();
+    console.log('[API] Standby request successful:', data);
+    return data;
+  } catch (error) {
+    console.error('[API] Standby error details:', error);
+    throw error;
+  }
+};
+
+
+
+
 // Edit Show API
 export const updateShow = async (showId, updates) => {
   try {
@@ -190,19 +246,4 @@ export const deleteShow = async (showId) => {
   }
 };
 
-export const sendOscPlay = async (showId, language) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/osc/play`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ showId, language }),
-    });
 
-    if (!response.ok) throw new Error("Failed to send OSC play signal");
-    return await response.json();
-  } catch (error) {
-    throw new Error("Failed to control show playback");
-  }
-};

@@ -243,6 +243,28 @@ export const updateShow = async (showId, updates) => {
   }
 };
 
+
+export const updateShowStatus = async (showId, status) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/shows/${showId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to update show status:', error);
+    throw error;
+  }
+};
+
 // Add new functions for EditShow component
 export const removeUserFromShow = async (showId, userId) => {
   try {

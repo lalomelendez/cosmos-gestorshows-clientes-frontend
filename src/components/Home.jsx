@@ -1,7 +1,26 @@
 // src/components/Home.jsx
 import { Link } from "react-router-dom";
+import { sendOscStandby } from "../services/api"; // Import the function
+import { useState } from "react";
 
 function Home() {
+  const [error, setError] = useState(null);
+
+  const handleStandby = async () => {
+    try {
+      setError(null);
+      console.log("[Home] Sending StandBy signal");
+
+      // Call sendOscStandby without a showId or with a default value
+      await sendOscStandby();
+
+      console.log("[Home] StandBy signal sent successfully");
+    } catch (error) {
+      console.error("[Home] StandBy error:", error);
+      setError("Failed to send StandBy signal");
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] p-8">
       <h1 className="text-4xl font-bold text-indigo-600 mb-4">
@@ -17,7 +36,9 @@ function Home() {
           <h2 className="text-2xl font-semibold text-indigo-600 mb-2">
             Schedule Show
           </h2>
-          <p className="text-gray-600">Create and schedule new shows quickly</p>
+          <p className="text-gray-600">
+            Create and schedule new shows quickly
+          </p>
         </Link>
 
         <Link
@@ -50,10 +71,22 @@ function Home() {
         </Link>
         <Link
           to="/capture-photo"
-          className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors"
         >
           Capture Photo
         </Link>
+      </div>
+
+      {error && <div className="text-red-500 mt-4">{error}</div>}
+
+      {/* StandBy Button */}
+      <div className="mt-8">
+        <button
+          onClick={handleStandby}
+          className="px-6 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 text-white"
+        >
+          STAND BY
+        </button>
       </div>
     </div>
   );

@@ -1,58 +1,197 @@
-import {
-  createBrowserRouter,
-  RouterProvider,
-  Route,
-  createRoutesFromElements,
-  Outlet,
-} from "react-router-dom";
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 
-import NavBar from "./components/NavBar";
-import Home from "./components/Home";
-import CreateShow from "./components/CreateShow";
-import AssignUsers from "./components/AssignUsers";
-import EditShow from "./components/EditShow";
-import ShowPlayback from "./components/ShowPlayback";
-import CapturePhoto from "./components/CapturePhoto";
+import { capturePhoto, fetchCapturedPhotos, approvePhoto } from './services/api';
 
-// Create NotFound component
-const NotFound = () => (
-  <div className="flex items-center justify-center min-h-[60vh]">
-    <h1 className="text-2xl text-gray-600">404 - Page Not Found</h1>
-  </div>
-);
+const API_BASE_URL = process.env.REACT_APP_API_URL;
 
-const router = createBrowserRouter(
-  createRoutesFromElements(
-    <Route path="/" element={<Layout />}>
-      <Route index element={<Home />} />
-      <Route path="create-show" element={<CreateShow />} />
-      <Route path="assign-users" element={<AssignUsers />} />
-      <Route path="edit-show" element={<EditShow />} />
-      <Route path="show-playback" element={<ShowPlayback />} />
-      <Route path="capture-photo" element={<CapturePhoto />} />
-      <Route path="*" element={<NotFound />} />
-    </Route>
-  ),
-  {
-    future: {
-      v7_skipActionErrorRevalidation: true
-    },
-  }
-);
+// Debug interceptor with more details
+axios.interceptors.request.use(request => {
+  console.log('Request:', {
+    method: request.method,
+    url: request.url,
+    data: request.data,
+    params: request.params
+  });
+  return request;
+});
 
-function App() {
-  return <RouterProvider router={router} />;
-}
+function CapturePhoto() {
+  const [photos, setPhotos] = useState([]);
+  const [currentAttempt, setCurrentAttempt] = useState(0);
+  const [sessionId, setSessionId] = useState(null);
+  const [showId, setShowId] = useState(null); // Add showId state
+  const [userIds, setUserIds] = useState([]); // Add userIds state
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedPhotoId, setSelectedPhotoId] = useState(null);
 
-function Layout() {
+  const fetchCapturedPhotos = useCallback(async () => {
+    if (!sessionId) return;
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/photos`, {
+        params: { sessionId }
+      });
+      console.log('Photos response:', response.data);
+      setPhotos(response.data.photos || []);
+    } catch (error) {
+      console.error('Error fetching photos:', {
+        error,
+        endpoint: `${API_BASE_URL}/photos`,
+        sessionId
+      });
+      setError(error.response?.data?.error || 'Failed to fetch photos');
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    let interval;
+    if (sessionId) {
+      fetchCapturedPhotos();
+      interval = setInterval(fetchCapturedPhotos, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [sessionId, fetchCapturedPhotos]);
+
+  const handleCapturePhoto = async () => {
+    setIsLoading(true);
+    setError(null);
+  
+    try {
+      const response = await capturePhoto(sessionId, showId, userIds);
+      console.log('Capture response:', response.data);
+      
+      if (!sessionId) {
+        setSessionId(response.data.sessionId);
+      }
+      
+      setCurrentAttempt(prev => prev + 1);
+      await fetchCapturedPhotos();
+    } catch (error) {
+      console.error('Error capturing photo:', error);
+      setError(error.response?.data?.error || 'Failed to capture photo');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectPhoto = (photoId) => {
+    setSelectedPhotoId(photoId);
+  };
+
+  const handleApprovePhoto = async () => {
+    if (!selectedPhotoId || !sessionId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await approvePhoto(sessionId, selectedPhotoId);
+
+      setSessionId(null);
+      setPhotos([]);
+      setCurrentAttempt(0);
+      setSelectedPhotoId(null);
+      
+      alert('Photo approved successfully');
+    } catch (error) {
+      console.error('Error approving photo:', {
+        error,
+        endpoint: `${API_BASE_URL}/photos/approve`,
+        sessionId,
+        photoId: selectedPhotoId
+      });
+      setError(error.response?.data?.error || 'Failed to approve photo');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCaptureAnotherPhoto = () => {
+    if (currentAttempt < 3) {
+      handleCapturePhoto();
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <NavBar />
-      <main className="container mx-auto px-4 py-8">
-        <Outlet />
-      </main>
+    <div className="container mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">Capture Photo</h1>
+
+      {error && (
+        <div className="text-red-600 mb-4">
+          {error}
+        </div>
+      )}
+
+      {photos.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {photos.map((photo) => (
+            <div
+              key={photo.photoId}
+              className={`cursor-pointer border-4 rounded overflow-hidden ${
+                selectedPhotoId === photo.photoId ? 'border-indigo-600' : 'border-transparent'
+              }`}
+              onClick={() => handleSelectPhoto(photo.photoId)}
+            >
+              <img 
+                src={photo.url} 
+                alt="Captured"
+                className="w-full h-auto"
+                onError={(e) => {
+                  console.error('Image load error:', photo.url);
+                  e.target.onerror = null;
+                  e.target.src = '/placeholder-image.jpg';
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex space-x-4">
+        {currentAttempt < 3 && (
+          <button
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
+            onClick={handleCapturePhoto}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Capturing...' : 'Capture Photo'}
+          </button>
+        )}
+
+        {photos.length > 0 && (
+          <>
+            <button
+              className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded ${
+                !selectedPhotoId ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              onClick={handleApprovePhoto}
+              disabled={!selectedPhotoId || isLoading}
+            >
+              Approve Photo
+            </button>
+
+            {currentAttempt < 3 && (
+              <button
+                className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
+                onClick={handleCaptureAnotherPhoto}
+                disabled={isLoading}
+              >
+                Capture Another Photo
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {currentAttempt > 0 && (
+        <div className="mt-4 text-gray-600">
+          Attempts: {currentAttempt}/3
+        </div>
+      )}
     </div>
   );
 }
 
-export default App;
+export default CapturePhoto;

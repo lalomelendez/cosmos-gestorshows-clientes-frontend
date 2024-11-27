@@ -1,75 +1,57 @@
+// src/components/CapturePhoto.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL;
-
-// Debug interceptor with more details
-axios.interceptors.request.use(request => {
-  console.log('Request:', {
-    method: request.method,
-    url: request.url,
-    data: request.data,
-    params: request.params
-  });
-  return request;
-});
+import { capturePhoto, fetchCapturedPhotos, approvePhoto } from '../services/api';
 
 function CapturePhoto() {
+  // State management
   const [photos, setPhotos] = useState([]);
   const [currentAttempt, setCurrentAttempt] = useState(0);
   const [sessionId, setSessionId] = useState(null);
+  const [showId, setShowId] = useState(null);
+  const [userIds, setUserIds] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedPhotoId, setSelectedPhotoId] = useState(null);
 
-  const fetchCapturedPhotos = useCallback(async () => {
+  // Fetch photos on session change
+  const fetchPhotos = useCallback(async () => {
     if (!sessionId) return;
 
     try {
-      // Updated endpoint to match backend route
-      const response = await axios.get(`${API_BASE_URL}/photos`, {
-        params: { sessionId }
-      });
-      console.log('Photos response:', response.data);
-      setPhotos(response.data.photos || []);
-    } catch (error) {
-      console.error('Error fetching photos:', {
-        error,
-        endpoint: `${API_BASE_URL}/photos/session/${sessionId}`,
-        sessionId
-      });
-      setError(error.response?.data?.error || 'Failed to fetch photos');
+      setIsLoading(true);
+      const data = await fetchCapturedPhotos(sessionId);
+      setPhotos(data.photos || []);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching photos:', err);
+    } finally {
+      setIsLoading(false);
     }
   }, [sessionId]);
 
   useEffect(() => {
     let interval;
     if (sessionId) {
-      fetchCapturedPhotos();
-      interval = setInterval(fetchCapturedPhotos, 3000);
+      fetchPhotos();
+      interval = setInterval(fetchPhotos, 3000);
     }
     return () => clearInterval(interval);
-  }, [sessionId, fetchCapturedPhotos]);
+  }, [sessionId, fetchPhotos]);
 
-  const handleCapturePhoto = async () => {
-    setIsLoading(true);
-    setError(null);
-  
+  const handleCapture = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/photos/capture`, {
-        sessionId
-      });
-      console.log('Capture response:', response.data);
+      setIsLoading(true);
+      setError(null);
       
+      const result = await capturePhoto(sessionId, showId, userIds);
       if (!sessionId) {
-        setSessionId(response.data.sessionId);
+        setSessionId(result.sessionId);
       }
-      
       setCurrentAttempt(prev => prev + 1);
-      await fetchCapturedPhotos();
-    } catch (error) {
-      console.error('Error capturing photo:', error);
-      setError(error.response?.data?.error || 'Failed to capture photo');
+      await fetchPhotos();
+    } catch (err) {
+      setError(err.message);
+      console.error('Error capturing photo:', err);
     } finally {
       setIsLoading(false);
     }
@@ -79,40 +61,23 @@ function CapturePhoto() {
     setSelectedPhotoId(photoId);
   };
 
-  const handleApprovePhoto = async () => {
+  const handleApprove = async () => {
     if (!selectedPhotoId || !sessionId) return;
 
-    setIsLoading(true);
-    setError(null);
-
     try {
-      await axios.post(`${API_BASE_URL}/photos/approve`, {
-        sessionId,
-        photoId: selectedPhotoId
-      });
-
+      setIsLoading(true);
+      setError(null);
+      
+      await approvePhoto(sessionId, selectedPhotoId);
       setSessionId(null);
       setPhotos([]);
       setCurrentAttempt(0);
       setSelectedPhotoId(null);
-      
-      alert('Photo approved successfully');
-    } catch (error) {
-      console.error('Error approving photo:', {
-        error,
-        endpoint: `${API_BASE_URL}/photos/approve`,
-        sessionId,
-        photoId: selectedPhotoId
-      });
-      setError(error.response?.data?.error || 'Failed to approve photo');
+    } catch (err) {
+      setError(err.message);
+      console.error('Error approving photo:', err);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleCaptureAnotherPhoto = () => {
-    if (currentAttempt < 3) {
-      handleCapturePhoto();
     }
   };
 
@@ -126,6 +91,7 @@ function CapturePhoto() {
         </div>
       )}
 
+      {/* Photo Gallery */}
       {photos.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {photos.map((photo) => (
@@ -151,11 +117,12 @@ function CapturePhoto() {
         </div>
       )}
 
+      {/* Action Buttons */}
       <div className="flex space-x-4">
         {currentAttempt < 3 && (
           <button
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
-            onClick={handleCapturePhoto}
+            onClick={handleCapture}
             disabled={isLoading}
           >
             {isLoading ? 'Capturing...' : 'Capture Photo'}
@@ -168,7 +135,7 @@ function CapturePhoto() {
               className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded ${
                 !selectedPhotoId ? 'opacity-50 cursor-not-allowed' : ''
               }`}
-              onClick={handleApprovePhoto}
+              onClick={handleApprove}
               disabled={!selectedPhotoId || isLoading}
             >
               Approve Photo
@@ -177,7 +144,7 @@ function CapturePhoto() {
             {currentAttempt < 3 && (
               <button
                 className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded"
-                onClick={handleCaptureAnotherPhoto}
+                onClick={handleCapture}
                 disabled={isLoading}
               >
                 Capture Another Photo
@@ -187,6 +154,7 @@ function CapturePhoto() {
         )}
       </div>
 
+      {/* Attempt Counter */}
       {currentAttempt > 0 && (
         <div className="mt-4 text-gray-600">
           Attempts: {currentAttempt}/3

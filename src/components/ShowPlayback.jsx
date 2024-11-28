@@ -15,17 +15,7 @@ function ShowPlayback() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-<<<<<<< HEAD
-  const [showUsers, setShowUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [isPlayingMessageVisible, setIsPlayingMessageVisible] = useState(false);
-  const [timer, setTimer] = useState(null);
-  const [remainingTime, setRemainingTime] = useState(200); // 144 seconds
-
-  const navigate = useNavigate();
-=======
   const [success, setSuccess] = useState(null);
->>>>>>> 1202163dc877c74ac32864471e3b8d54904c358b
 
   useEffect(() => {
     loadShows();
@@ -92,25 +82,6 @@ function ShowPlayback() {
       );
 
       setIsPlaying(true);
-<<<<<<< HEAD
-      setIsPlayingMessageVisible(true);
-      setRemainingTime(200); // Reset remaining time
-
-      // Start timer for 200 seconds (2 minutes and 24 seconds)
-      const newTimer = setInterval(() => {
-        setRemainingTime((prevTime) => {
-          if (prevTime <= 1) {
-            clearInterval(newTimer);
-            setIsPlayingMessageVisible(false);
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000); // Decrement every second
-
-      setTimer(newTimer);
-=======
->>>>>>> 1202163dc877c74ac32864471e3b8d54904c358b
     } catch (error) {
       console.error("[Frontend] Playback error:", error);
       setError(

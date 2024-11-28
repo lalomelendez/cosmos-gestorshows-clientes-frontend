@@ -1,8 +1,7 @@
 // src/services/api.js
 
-
-  export const API_BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.0.100:5000/api";
-
+export const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "http://192.168.0.100:5000/api";
 
 // Shows API
 export const createShow = async (startTime) => {
@@ -95,20 +94,33 @@ export const assignUserToShow = async (userId, showId) => {
 };
 
 // Photo API
-export const capturePhoto = async (showId) => {
+export const capturePhoto = async (showId, userIds) => {
+  console.log("[API] Capturing photo:", { showId, userIds });
   try {
-    const response = await fetch(`${API_BASE_URL}/photos/${showId}`, {
+    const response = await fetch(`${API_BASE_URL}/photos/capture`, {
+      // Updated endpoint
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        showId,
+        userIds,
+        timestamp: new Date().toISOString(), // Add timestamp
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to capture photo");
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log("[API] Photo capture response:", data);
+    return data;
   } catch (error) {
-    console.error("Failed to capture photo:", error);
-    throw new Error("Failed to capture photo. Please try again.");
+    console.error("[API] Photo capture error:", error);
+    throw error;
   }
 };
 
@@ -126,74 +138,85 @@ export const getShowPlayback = async (showId) => {
   }
 };
 
+export const sendOscPlay = async (showId, userIds, language) => {
+  // Validate inputs
+  if (!showId) throw new Error("ShowId is required");
+  if (!userIds || !Array.isArray(userIds))
+    throw new Error("UserIds array is required");
+  if (!language || !["en", "es"].includes(language)) {
+    throw new Error('Invalid language. Must be "en" or "es"');
+  }
 
-export const sendOscPlay = async (showId, language) => {
-  console.log(`[Frontend] Sending play request:`, { showId, language });
+  console.log("[API] Sending play request:", { showId, userIds, language });
+
   try {
     const response = await fetch(`${API_BASE_URL}/osc/play`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ showId, language }),
+      body: JSON.stringify({
+        showId,
+        userIds,
+        language,
+      }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error(`[Frontend] Server error:`, errorData);
       throw new Error(errorData.message || "Failed to send OSC play signal");
     }
 
     const data = await response.json();
-    console.log('[Frontend] Play request successful:', data);
+    console.log("[API] Play response:", data);
     return data;
   } catch (error) {
-    console.error('[Frontend] Play error details:', error);
+    console.error("[API] Play error:", error);
     throw error;
   }
 };
 
 // In api.js - Update sendShowUserDetails
 export const sendShowUserDetails = async (showId) => {
-  console.log('[API] Sending user details for show:', showId);
+  console.log("[API] Sending user details for show:", showId);
   try {
     // First get show details with populated users
     const showResponse = await fetch(`${API_BASE_URL}/shows/${showId}`);
     if (!showResponse.ok) {
-      throw new Error('Failed to fetch show details');
+      throw new Error("Failed to fetch show details");
     }
     const showData = await showResponse.json();
 
     // Send user details to OSC endpoint
     const response = await fetch(`${API_BASE_URL}/osc/send-users`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         showId,
-        users: showData.clients // Send the populated users array
+        users: showData.clients, // Send the populated users array
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      throw new Error(
+        errorData.message || `HTTP error! status: ${response.status}`
+      );
     }
-    
+
     const data = await response.json();
-    console.log('[API] Successfully sent user details:', data);
+    console.log("[API] Successfully sent user details:", data);
     return data;
   } catch (error) {
-    console.error('[API] Failed to send user details:', error);
+    console.error("[API] Failed to send user details:", error);
     throw error;
   }
 };
 
-
-
 export const sendOscStandby = async (showId) => {
-  console.log('[API] Sending standby request:', { showId });
+  console.log("[API] Sending standby request:", { showId });
   try {
     const response = await fetch(`${API_BASE_URL}/osc/standby`, {
       method: "POST",
@@ -205,21 +228,18 @@ export const sendOscStandby = async (showId) => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('[API] Server error:', errorData);
+      console.error("[API] Server error:", errorData);
       throw new Error(errorData.message || "Failed to send OSC standby signal");
     }
 
     const data = await response.json();
-    console.log('[API] Standby request successful:', data);
+    console.log("[API] Standby request successful:", data);
     return data;
   } catch (error) {
-    console.error('[API] Standby error details:', error);
+    console.error("[API] Standby error details:", error);
     throw error;
   }
 };
-
-
-
 
 // Edit Show API
 export const updateShow = async (showId, updates) => {
@@ -243,13 +263,12 @@ export const updateShow = async (showId, updates) => {
   }
 };
 
-
 export const updateShowStatus = async (showId, status) => {
   try {
     const response = await fetch(`${API_BASE_URL}/shows/${showId}/status`, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ status }),
     });
@@ -260,7 +279,7 @@ export const updateShowStatus = async (showId, status) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Failed to update show status:', error);
+    console.error("Failed to update show status:", error);
     throw error;
   }
 };
@@ -309,13 +328,12 @@ export const deleteShow = async (showId) => {
   }
 };
 
-
 // In api.js - Add new function
 export const getShowById = async (showId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/shows/${showId}`);
     if (!response.ok) {
-      throw new Error('Failed to fetch show details');
+      throw new Error("Failed to fetch show details");
     }
     return await response.json();
   } catch (error) {
@@ -323,5 +341,3 @@ export const getShowById = async (showId) => {
     throw error;
   }
 };
-
-

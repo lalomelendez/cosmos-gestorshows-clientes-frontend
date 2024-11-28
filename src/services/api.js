@@ -138,11 +138,10 @@ export const getShowPlayback = async (showId) => {
   }
 };
 
-export const sendOscPlay = async (showId, userIds, language) => {
+export const sendOscPlay = async (showId, language, userIds) => {
   // Validate inputs
   if (!showId) throw new Error("ShowId is required");
-  if (!userIds || !Array.isArray(userIds))
-    throw new Error("UserIds array is required");
+  if (!userIds || !Array.isArray(userIds)) throw new Error("UserIds array is required");
   if (!language || !["en", "es"].includes(language)) {
     throw new Error('Invalid language. Must be "en" or "es"');
   }
@@ -171,11 +170,10 @@ export const sendOscPlay = async (showId, userIds, language) => {
     console.log("[API] Play response:", data);
     return data;
   } catch (error) {
-    console.error("[API] Play error:", error);
+    console.error("[API] Failed to send play signal:", error);
     throw error;
   }
 };
-
 // In api.js - Update sendShowUserDetails
 export const sendShowUserDetails = async (showId) => {
   console.log("[API] Sending user details for show:", showId);

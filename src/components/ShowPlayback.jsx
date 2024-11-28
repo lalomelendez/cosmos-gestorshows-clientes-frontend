@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { fetchShows, sendOscPlay, sendOscStandby, sendShowUserDetails, getShowById, updateShowStatus } from "../services/api";
-import { useNavigate } from "react-router-dom";
+
 
 function ShowPlayback() {
   const [shows, setShows] = useState([]);
@@ -12,7 +12,7 @@ function ShowPlayback() {
   const [showUsers, setShowUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const navigate = useNavigate();
+
 
   useEffect(() => {
     loadShows();
@@ -179,7 +179,7 @@ function ShowPlayback() {
                     <div>Energy: {user.energy}</div>
                     <div>Element: {user.element}</div>
                     <div>Essence: {user.essence}</div>
-                    <div>Engravings: {user.engraving}</div> {/* Display engravings */}
+                    <div>Engraving: {user.engraving}</div> {/* Display engraving */}
                   </div>
                 </div>
               ))}

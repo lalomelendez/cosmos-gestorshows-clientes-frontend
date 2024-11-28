@@ -13,7 +13,7 @@ function ShowPlayback() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [isPlayingMessageVisible, setIsPlayingMessageVisible] = useState(false);
   const [timer, setTimer] = useState(null);
-  const [remainingTime, setRemainingTime] = useState(144); // 144 seconds
+  const [remainingTime, setRemainingTime] = useState(200); // 144 seconds
 
   const navigate = useNavigate();
 
@@ -88,9 +88,9 @@ function ShowPlayback() {
       
       setIsPlaying(true);
       setIsPlayingMessageVisible(true);
-      setRemainingTime(144); // Reset remaining time
+      setRemainingTime(200); // Reset remaining time
 
-      // Start timer for 144 seconds (2 minutes and 24 seconds)
+      // Start timer for 200 seconds (2 minutes and 24 seconds)
       const newTimer = setInterval(() => {
         setRemainingTime((prevTime) => {
           if (prevTime <= 1) {
